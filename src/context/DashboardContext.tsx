@@ -20,7 +20,7 @@ export interface ActivityImpact {
 }
 
 export interface Activity {
-  id: number
+  id: string | number
   action: string
   impacts: ActivityImpact[]
   date: string // e.g., 'Oct 14'
@@ -34,12 +34,12 @@ interface DashboardContextType {
   currentYear: number
   setCurrentYear: (year: number) => void
   generalPlan: string
-  setGeneralPlan: (plan: string) => void
+  setGeneralPlan: (plan: string) => Promise<void>
   specificGoals: SpecificGoal[]
   addGoal: (goal: SpecificGoal) => Promise<void>
   editGoal: (id: string, updates: Partial<SpecificGoal>) => Promise<void>
   activities: Activity[]
-  addActivity: (activity: Activity) => void
+  addActivity: (activity: Activity) => Promise<void>
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined)
@@ -61,19 +61,26 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function loadData() {
       try {
-        const savedPlan = localStorage.getItem('cpd_general_plan')
-        if (savedPlan) setGeneralPlanState(savedPlan)
-
         const savedYear = localStorage.getItem('cpd_current_year')
         const activeYear = savedYear ? Number(savedYear) : 2018
         setCurrentYear(activeYear)
 
-        // Load Goals from Supabase
         const supabase = createClient()
         const { data: { user } } = await supabase.auth.getUser()
-        
-        let loadedGoals: SpecificGoal[] = []
+
+        let loadedGoals: SpecificGoal[] = INITIAL_GOALS
+
         if (user) {
+          // Load General Plan
+          const { data: planData, error: planError } = await supabase
+            .from('general_plans')
+            .select('plan')
+            .eq('user_id', user.id)
+            .maybeSingle()
+            
+          if (planData && !planError) {
+            setGeneralPlanState(planData.plan)
+          }
           const { data, error } = await supabase
             .from('goals')
             .select('*')
@@ -95,19 +102,29 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         setSpecificGoalsState(loadedGoals)
 
         let loadedActivities: Activity[] = []
-        const savedActivities = localStorage.getItem('cpd_activities')
-        if (savedActivities) {
-          loadedActivities = JSON.parse(savedActivities)
+        if (user) {
+          const { data: actData, error: actError } = await supabase
+            .from('activities')
+            .select('*')
+            .order('created_at', { ascending: false })
+            
+          if (actData && !actError) {
+            loadedActivities = actData.map((a: any) => ({
+              id: a.id,
+              action: a.action,
+              impacts: a.impacts,
+              date: a.date,
+              dateIso: a.date_iso,
+              ethWeek: a.eth_week,
+              year: a.year,
+              isPenalty: a.is_penalty
+            }))
+          }
         }
         
         // Run Penalty Engine
-        const processedActivities = enforcePenalties(loadedActivities, loadedGoals, activeYear)
+        const processedActivities = await enforcePenalties(loadedActivities, loadedGoals, activeYear)
         setActivitiesState(processedActivities)
-        
-        // Save possibly new penalties back
-        if (processedActivities.length !== loadedActivities.length) {
-          localStorage.setItem('cpd_activities', JSON.stringify(processedActivities))
-        }
 
       } catch (e) {
         console.error("Failed to load from local storage or supabase", e)
@@ -119,7 +136,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     loadData()
   }, [])
 
-  const enforcePenalties = (currentActivities: Activity[], currentGoals: SpecificGoal[], activeYear: number): Activity[] => {
+  const enforcePenalties = async (currentActivities: Activity[], currentGoals: SpecificGoal[], activeYear: number): Promise<Activity[]> => {
     if (currentActivities.length === 0) return currentActivities
 
     // Find the earliest activity date
@@ -152,12 +169,12 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         }))
 
         const penaltyActivity: Activity = {
-          id: day.getTime(),
+          id: day.getTime().toString(), // We'll let DB generate UUID if we want, but local generation is easier here for state
           action: 'Missed Day Penalty (App Rule)',
           impacts,
           date: format(day, 'MMM d'),
           dateIso: day.toISOString(),
-          ethWeek: `Week ${Math.ceil(day.getDate() / 7)}`, // Mock week approximation
+          ethWeek: `Week ${Math.ceil(day.getDate() / 7)}`,
           year: activeYear,
           isPenalty: true
         }
@@ -168,16 +185,62 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     })
 
     if (addedPenalties) {
-      // Sort descending again
+      // Find which ones are new
+      const newOnly = newActivities.filter(na => !currentActivities.some(ca => ca.id === na.id))
+      if (newOnly.length > 0) {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const insertPayload = newOnly.map(act => ({
+            user_id: user.id,
+            action: act.action,
+            impacts: act.impacts,
+            date: act.date,
+            date_iso: act.dateIso,
+            eth_week: act.ethWeek,
+            year: act.year,
+            is_penalty: act.isPenalty
+          }))
+          const { data } = await supabase.from('activities').insert(insertPayload).select()
+          
+          if (data) {
+             // Rebuild state with proper UUIDs
+             const mappedData = data.map((a: any) => ({
+                id: a.id,
+                action: a.action,
+                impacts: a.impacts,
+                date: a.date,
+                dateIso: a.date_iso,
+                ethWeek: a.eth_week,
+                year: a.year,
+                isPenalty: a.is_penalty
+             }))
+             return [...mappedData, ...currentActivities].sort((a, b) => new Date(b.dateIso).getTime() - new Date(a.dateIso).getTime())
+          }
+        }
+      }
+
       return newActivities.sort((a, b) => new Date(b.dateIso).getTime() - new Date(a.dateIso).getTime())
     }
 
     return currentActivities
   }
 
-  const setGeneralPlan = (plan: string) => {
+  const setGeneralPlan = async (plan: string) => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { error } = await supabase
+      .from('general_plans')
+      .upsert({ user_id: user.id, plan }, { onConflict: 'user_id' })
+
+    if (error) {
+      console.error("Error setting general plan:", error.message || error)
+      return
+    }
+
     setGeneralPlanState(plan)
-    localStorage.setItem('cpd_general_plan', plan)
   }
 
   const addGoal = async (goal: SpecificGoal) => {
@@ -237,10 +300,39 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     setSpecificGoalsState(prev => prev.map(g => g.id === id ? { ...g, ...updates } : g))
   }
 
-  const addActivity = (activity: Activity) => {
-    const updated = [activity, ...activities]
-    setActivitiesState(updated)
-    localStorage.setItem('cpd_activities', JSON.stringify(updated))
+  const addActivity = async (activity: Activity) => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { data, error } = await supabase.from('activities').insert({
+      user_id: user.id,
+      action: activity.action,
+      impacts: activity.impacts,
+      date: activity.date,
+      date_iso: activity.dateIso,
+      eth_week: activity.ethWeek,
+      year: activity.year,
+      is_penalty: activity.isPenalty || false
+    }).select().single()
+
+    if (error) {
+      console.error("Error inserting activity:", error.message || error)
+      return
+    }
+
+    const newActivity: Activity = {
+      id: data.id,
+      action: data.action,
+      impacts: data.impacts,
+      date: data.date,
+      dateIso: data.date_iso,
+      ethWeek: data.eth_week,
+      year: data.year,
+      isPenalty: data.is_penalty
+    }
+
+    setActivitiesState(prev => [newActivity, ...prev])
   }
 
   const handleSetYear = (year: number) => {
