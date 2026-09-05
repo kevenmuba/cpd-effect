@@ -2,10 +2,12 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { startOfDay, endOfDay, eachDayOfInterval, format, isBefore, isSameDay, subDays } from 'date-fns'
+import { createClient } from '@/utils/supabase/client'
 
 export interface SpecificGoal {
   id: string
   name: string
+  sidebarName?: string
   target: string
   isActive: boolean
   year: number
@@ -34,8 +36,8 @@ interface DashboardContextType {
   generalPlan: string
   setGeneralPlan: (plan: string) => void
   specificGoals: SpecificGoal[]
-  addGoal: (goal: SpecificGoal) => void
-  editGoal: (id: string, updates: Partial<SpecificGoal>) => void
+  addGoal: (goal: SpecificGoal) => Promise<void>
+  editGoal: (id: string, updates: Partial<SpecificGoal>) => Promise<void>
   activities: Activity[]
   addActivity: (activity: Activity) => void
 }
@@ -57,41 +59,64 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
-    try {
-      const savedPlan = localStorage.getItem('cpd_general_plan')
-      if (savedPlan) setGeneralPlanState(savedPlan)
+    async function loadData() {
+      try {
+        const savedPlan = localStorage.getItem('cpd_general_plan')
+        if (savedPlan) setGeneralPlanState(savedPlan)
 
-      let loadedGoals = INITIAL_GOALS
-      const savedGoals = localStorage.getItem('cpd_specific_goals')
-      if (savedGoals) {
-        loadedGoals = JSON.parse(savedGoals)
+        const savedYear = localStorage.getItem('cpd_current_year')
+        const activeYear = savedYear ? Number(savedYear) : 2018
+        setCurrentYear(activeYear)
+
+        // Load Goals from Supabase
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        
+        let loadedGoals: SpecificGoal[] = []
+        if (user) {
+          const { data, error } = await supabase
+            .from('goals')
+            .select('*')
+            .order('created_at', { ascending: true })
+            
+          if (!error && data) {
+            loadedGoals = data.map((g: any) => ({
+              id: g.id,
+              name: g.name,
+              sidebarName: g.sidebar_name,
+              target: g.target,
+              isActive: g.is_active,
+              year: g.year
+            }))
+          } else if (error) {
+            console.error("Supabase select error:", error.message || error)
+          }
+        }
         setSpecificGoalsState(loadedGoals)
-      }
 
-      let loadedActivities: Activity[] = []
-      const savedActivities = localStorage.getItem('cpd_activities')
-      if (savedActivities) {
-        loadedActivities = JSON.parse(savedActivities)
-      }
-      
-      const savedYear = localStorage.getItem('cpd_current_year')
-      const activeYear = savedYear ? Number(savedYear) : 2018
-      setCurrentYear(activeYear)
+        let loadedActivities: Activity[] = []
+        const savedActivities = localStorage.getItem('cpd_activities')
+        if (savedActivities) {
+          loadedActivities = JSON.parse(savedActivities)
+        }
+        
+        // Run Penalty Engine
+        const processedActivities = enforcePenalties(loadedActivities, loadedGoals, activeYear)
+        setActivitiesState(processedActivities)
+        
+        // Save possibly new penalties back
+        if (processedActivities.length !== loadedActivities.length) {
+          localStorage.setItem('cpd_activities', JSON.stringify(processedActivities))
+        }
 
-      // Run Penalty Engine
-      const processedActivities = enforcePenalties(loadedActivities, loadedGoals, activeYear)
-      setActivitiesState(processedActivities)
-      
-      // Save possibly new penalties back
-      if (processedActivities.length !== loadedActivities.length) {
-        localStorage.setItem('cpd_activities', JSON.stringify(processedActivities))
+      } catch (e) {
+        console.error("Failed to load from local storage or supabase", e)
+      } finally {
+        setIsLoaded(true)
       }
-
-    } catch (e) {
-      console.error("Failed to load from local storage", e)
-    } finally {
-      setIsLoaded(true)
     }
+    
+    loadData()
   }, [])
 
   const enforcePenalties = (currentActivities: Activity[], currentGoals: SpecificGoal[], activeYear: number): Activity[] => {
@@ -155,16 +180,61 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('cpd_general_plan', plan)
   }
 
-  const addGoal = (goal: SpecificGoal) => {
-    const updated = [...specificGoals, goal]
-    setSpecificGoalsState(updated)
-    localStorage.setItem('cpd_specific_goals', JSON.stringify(updated))
+  const addGoal = async (goal: SpecificGoal) => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { data, error } = await supabase.from('goals').insert({
+      user_id: user.id,
+      name: goal.name,
+      sidebar_name: goal.sidebarName || goal.name,
+      target: goal.target,
+      is_active: goal.isActive,
+      year: goal.year
+    }).select().single()
+
+    if (error) {
+      console.error("Error inserting goal:", error.message || error.details || error)
+      return
+    }
+
+    const newGoal: SpecificGoal = {
+      id: data.id,
+      name: data.name,
+      sidebarName: data.sidebar_name,
+      target: data.target,
+      isActive: data.is_active,
+      year: data.year
+    }
+
+    setSpecificGoalsState(prev => [...prev, newGoal])
   }
 
-  const editGoal = (id: string, updates: Partial<SpecificGoal>) => {
-    const updated = specificGoals.map(g => g.id === id ? { ...g, ...updates } : g)
-    setSpecificGoalsState(updated)
-    localStorage.setItem('cpd_specific_goals', JSON.stringify(updated))
+  const editGoal = async (id: string, updates: Partial<SpecificGoal>) => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const dbUpdates: any = {}
+    if (updates.name !== undefined) dbUpdates.name = updates.name
+    if (updates.sidebarName !== undefined) dbUpdates.sidebar_name = updates.sidebarName
+    if (updates.target !== undefined) dbUpdates.target = updates.target
+    if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive
+    if (updates.year !== undefined) dbUpdates.year = updates.year
+
+    const { error } = await supabase
+      .from('goals')
+      .update(dbUpdates)
+      .eq('id', id)
+      .eq('user_id', user.id)
+
+    if (error) {
+      console.error("Error updating goal:", error.message || error.details || error)
+      return
+    }
+
+    setSpecificGoalsState(prev => prev.map(g => g.id === id ? { ...g, ...updates } : g))
   }
 
   const addActivity = (activity: Activity) => {

@@ -11,11 +11,13 @@ export default function ManageGoalsClient() {
   const [tempPlan, setTempPlan] = useState(generalPlan)
   
   const [newGoalName, setNewGoalName] = useState('')
+  const [newGoalSidebarName, setNewGoalSidebarName] = useState('')
   const [newGoalTarget, setNewGoalTarget] = useState('')
 
   // State for editing a specific goal inline
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null)
   const [editGoalName, setEditGoalName] = useState('')
+  const [editGoalSidebarName, setEditGoalSidebarName] = useState('')
   const [editGoalTarget, setEditGoalTarget] = useState('')
 
   // Generate years from 2018 up to 2030 (Ethiopian)
@@ -31,8 +33,9 @@ export default function ManageGoalsClient() {
     if (!newGoalName.trim()) return
 
     const newGoal = {
-      id: newGoalName.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now(),
+      id: newGoalName.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now(), // Ignored by DB but satisfies type
       name: newGoalName,
+      sidebarName: newGoalSidebarName || newGoalName,
       target: newGoalTarget || 'No specific target set',
       isActive: true,
       year: currentYear
@@ -40,17 +43,19 @@ export default function ManageGoalsClient() {
 
     addGoal(newGoal)
     setNewGoalName('')
+    setNewGoalSidebarName('')
     setNewGoalTarget('')
   }
 
   const startEditingGoal = (goal: any) => {
     setEditingGoalId(goal.id)
     setEditGoalName(goal.name)
+    setEditGoalSidebarName(goal.sidebarName || goal.name)
     setEditGoalTarget(goal.target)
   }
 
   const saveEditedGoal = (id: string) => {
-    editGoal(id, { name: editGoalName, target: editGoalTarget })
+    editGoal(id, { name: editGoalName, sidebarName: editGoalSidebarName, target: editGoalTarget })
     setEditingGoalId(null)
   }
 
@@ -165,12 +170,21 @@ export default function ManageGoalsClient() {
                     type="text"
                     value={editGoalName}
                     onChange={(e) => setEditGoalName(e.target.value)}
+                    placeholder="Full Goal Description"
+                    className="w-full rounded border border-slate-300 px-3 py-1.5 text-sm focus:border-primary focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    value={editGoalSidebarName}
+                    onChange={(e) => setEditGoalSidebarName(e.target.value)}
+                    placeholder="Short Sidebar Name"
                     className="w-full rounded border border-slate-300 px-3 py-1.5 text-sm focus:border-primary focus:outline-none"
                   />
                   <input
                     type="text"
                     value={editGoalTarget}
                     onChange={(e) => setEditGoalTarget(e.target.value)}
+                    placeholder="Target Score"
                     className="w-full rounded border border-slate-300 px-3 py-1.5 text-sm focus:border-primary focus:outline-none"
                   />
                   <div className="flex gap-2 pt-2">
@@ -215,19 +229,30 @@ export default function ManageGoalsClient() {
         <div className="border-t border-slate-200 pt-6">
           <h3 className="text-sm font-semibold text-slate-900 mb-4 uppercase tracking-wider">Create New Specific Goal</h3>
           <form onSubmit={handleAddGoal} className="grid gap-4 md:grid-cols-12 items-end">
-            <div className="md:col-span-5">
-              <label htmlFor="goalName" className="mb-2 block text-sm font-medium text-slate-700">Goal Name</label>
+            <div className="md:col-span-4">
+              <label htmlFor="goalName" className="mb-2 block text-sm font-medium text-slate-700">Full Description</label>
               <input
                 id="goalName"
                 type="text"
                 value={newGoalName}
                 onChange={(e) => setNewGoalName(e.target.value)}
-                placeholder="e.g. Learn React"
+                placeholder="e.g. Read 20 pages everyday"
                 className="w-full rounded-lg border border-slate-300 px-4 py-2.5 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 required
               />
             </div>
-            <div className="md:col-span-5">
+            <div className="md:col-span-3">
+              <label htmlFor="goalSidebarName" className="mb-2 block text-sm font-medium text-slate-700">Sidebar Name</label>
+              <input
+                id="goalSidebarName"
+                type="text"
+                value={newGoalSidebarName}
+                onChange={(e) => setNewGoalSidebarName(e.target.value)}
+                placeholder="e.g. Reading Habit"
+                className="w-full rounded-lg border border-slate-300 px-4 py-2.5 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+            <div className="md:col-span-3">
               <label htmlFor="goalTarget" className="mb-2 block text-sm font-medium text-slate-700">Target (Optional)</label>
               <input
                 id="goalTarget"
