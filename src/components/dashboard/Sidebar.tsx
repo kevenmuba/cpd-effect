@@ -1,14 +1,15 @@
+'use client'
+
 import Link from 'next/link'
 import { LayoutDashboard, Target, CalendarDays, LineChart, FileText } from 'lucide-react'
-
-// Sample data for dynamic specific goals
-const SAMPLE_GOALS = [
-  { id: 'financial', name: 'Financial Freedom' },
-  { id: 'health', name: 'Health & Fitness' },
-  { id: 'religious', name: 'Spiritual Growth' },
-]
+import { useDashboard } from '@/context/DashboardContext'
 
 export default function Sidebar() {
+  const { specificGoals, currentYear } = useDashboard()
+  
+  // Only show active goals for the selected year
+  const activeGoals = specificGoals.filter(goal => goal.isActive && goal.year === currentYear)
+
   return (
     <aside className="w-64 border-r border-slate-200 bg-slate-50/50 hidden md:block flex-shrink-0">
       <div className="flex h-full flex-col px-4 py-6">
@@ -57,9 +58,9 @@ export default function Sidebar() {
 
           <div className="pt-4">
             <p className="px-2 text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
-              Specific Reports
+              {currentYear} Reports
             </p>
-            {SAMPLE_GOALS.map((goal) => (
+            {activeGoals.map((goal) => (
               <Link
                 key={goal.id}
                 href={`/dashboard/reports/${goal.id}`}
@@ -69,6 +70,9 @@ export default function Sidebar() {
                 {goal.name}
               </Link>
             ))}
+            {activeGoals.length === 0 && (
+              <p className="px-3 py-2 text-xs text-slate-400">No active goals yet.</p>
+            )}
           </div>
         </nav>
 
