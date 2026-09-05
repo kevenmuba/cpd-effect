@@ -60,6 +60,13 @@ export default function Sidebar() {
             <p className="px-2 text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
               {currentYear} Reports
             </p>
+            <Link
+              href="/dashboard/reports"
+              className="flex items-center gap-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 shadow-sm ring-1 ring-emerald-200 mb-2"
+            >
+              <FileText className="h-4 w-4" />
+              Master Report
+            </Link>
             {activeGoals.map((goal) => (
               <Link
                 key={goal.id}
