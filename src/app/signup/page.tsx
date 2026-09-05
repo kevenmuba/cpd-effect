@@ -1,7 +1,7 @@
 import Link from 'next/link'
-import { login } from './actions'
+import { signup } from '../actions'
 
-export default async function LoginPage({
+export default async function SignupPage({
   searchParams,
 }: {
   searchParams: Promise<{ message?: string }>
@@ -13,14 +13,14 @@ export default async function LoginPage({
       <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl dark:bg-slate-800 ring-1 ring-slate-900/5">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-            Welcome Back
+            Create an Account
           </h1>
           <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-            Log in to track your CPD effect and reach your goals.
+            Start tracking your actions and compound your success.
           </p>
         </div>
 
-        <form className="flex flex-col space-y-5" action={login}>
+        <form className="flex flex-col space-y-5" action={signup}>
           <div>
             <label
               htmlFor="email"
@@ -65,17 +65,17 @@ export default async function LoginPage({
             type="submit"
             className="w-full rounded-lg bg-primary px-4 py-3 font-semibold text-white shadow-md transition-all hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-primary/50"
           >
-            Log In
+            Sign Up
           </button>
         </form>
 
         <p className="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
-          Don't have an account?{' '}
+          Already have an account?{' '}
           <Link
-            href="/signup"
+            href="/"
             className="font-medium text-primary hover:underline"
           >
-            Sign up
+            Log in
           </Link>
         </p>
       </div>
