@@ -2,15 +2,24 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { LayoutDashboard, Target, CalendarDays, LineChart, FileText, ChevronDown, ChevronRight } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { LayoutDashboard, Target, CalendarDays, LineChart, FileText, ChevronDown, ChevronRight, LogOut } from 'lucide-react'
+import { createClient } from '@/utils/supabase/client'
 import { useDashboard } from '@/context/DashboardContext'
 
 export default function Sidebar() {
   const { specificGoals, currentYear } = useDashboard()
   const [isReportsOpen, setIsReportsOpen] = useState(true)
+  const router = useRouter()
   
   // Only show active goals for the selected year
   const activeGoals = specificGoals.filter(goal => goal.isActive && goal.year === currentYear)
+
+  const handleSignOut = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/')
+  }
 
   return (
     <aside className="w-64 border-r border-slate-200 bg-slate-50/50 hidden md:block flex-shrink-0">
@@ -95,14 +104,13 @@ export default function Sidebar() {
         </nav>
 
         <div className="mt-auto border-t border-slate-200 pt-4">
-          <form action="/auth/signout" method="post">
-            <button
-              type="submit"
-              className="w-full text-left rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-            >
-              Sign Out
-            </button>
-          </form>
+          <button
+            onClick={handleSignOut}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 transition-colors"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign Out
+          </button>
         </div>
       </div>
     </aside>

@@ -1,13 +1,15 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { TrendingUp, Activity, Target } from 'lucide-react'
+import { isSameDay, isSameWeek, isSameMonth } from 'date-fns'
 import { useDashboard } from '@/context/DashboardContext'
 
 export default function OverviewClient() {
   const { currentYear, setCurrentYear, activities, specificGoals } = useDashboard()
 
   const availableYears = Array.from({length: 13}, (_, i) => 2018 + i)
+  const [timeFilter, setTimeFilter] = useState<'day' | 'week' | 'month' | 'year'>('year')
 
   const { totalActions, overallScore, totalPositive, totalNegative, activeGoalsCount, recentActivities } = useMemo(() => {
     // 1. Filter goals
@@ -16,15 +18,25 @@ export default function OverviewClient() {
     const activeGoalIds = new Set(activeGoals.map(g => g.id))
 
     // 2. Filter and process activities
-    const yearActivities = activities.filter(a => a.year === currentYear)
-    const totalActions = yearActivities.length
+    let filteredActivities = activities.filter(a => a.year === currentYear)
+    
+    const today = new Date()
+    if (timeFilter === 'day') {
+      filteredActivities = filteredActivities.filter(a => isSameDay(new Date(a.dateIso), today))
+    } else if (timeFilter === 'week') {
+      filteredActivities = filteredActivities.filter(a => isSameWeek(new Date(a.dateIso), today))
+    } else if (timeFilter === 'month') {
+      filteredActivities = filteredActivities.filter(a => isSameMonth(new Date(a.dateIso), today))
+    }
+
+    const totalActions = filteredActivities.length
 
     let overallScore = 0
     let totalPositive = 0
     let totalNegative = 0
     const processedActivities = []
 
-    for (const activity of yearActivities) {
+    for (const activity of filteredActivities) {
       // Sum the scores of impacts that hit ACTIVE goals for this year
       for (const impact of activity.impacts) {
         if (activeGoalIds.has(impact.goalId)) {
@@ -51,7 +63,7 @@ export default function OverviewClient() {
     const recentActivities = processedActivities.slice(0, 10)
 
     return { totalActions, overallScore, totalPositive, totalNegative, activeGoalsCount, recentActivities }
-  }, [activities, specificGoals, currentYear])
+  }, [activities, specificGoals, currentYear, timeFilter])
 
   const OVERVIEW_METRICS = [
     { title: 'Total Actions Logged', value: totalActions.toString(), icon: Activity, trend: 'For ' + currentYear },
@@ -67,21 +79,36 @@ export default function OverviewClient() {
           <p className="text-slate-500">Welcome back, your compound effect is building up nicely.</p>
         </div>
         
-        {/* Year Filter */}
-        <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
-          <label htmlFor="overviewYearFilter" className="text-sm font-medium text-slate-600 whitespace-nowrap">
-            Ethiopian Year:
-          </label>
-          <select 
-            id="overviewYearFilter"
-            value={currentYear}
-            onChange={(e) => setCurrentYear(Number(e.target.value))}
-            className="bg-transparent text-slate-900 font-bold focus:outline-none cursor-pointer"
-          >
-            {availableYears.map(year => (
-              <option key={year} value={year}>{year}</option>
+        <div className="flex items-center gap-4 flex-wrap justify-end">
+          {/* Time Filter */}
+          <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
+            {(['day', 'week', 'month', 'year'] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => setTimeFilter(f)}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md capitalize transition-colors ${timeFilter === f ? 'bg-slate-100 text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}
+              >
+                {f}
+              </button>
             ))}
-          </select>
+          </div>
+
+          {/* Year Filter */}
+          <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
+            <label htmlFor="overviewYearFilter" className="text-sm font-medium text-slate-600 whitespace-nowrap">
+              Ethiopian Year:
+            </label>
+            <select 
+              id="overviewYearFilter"
+              value={currentYear}
+              onChange={(e) => setCurrentYear(Number(e.target.value))}
+              className="bg-transparent text-slate-900 font-bold focus:outline-none cursor-pointer"
+            >
+              {availableYears.map(year => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
