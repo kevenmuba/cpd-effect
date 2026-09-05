@@ -9,7 +9,7 @@ export default function OverviewClient() {
 
   const availableYears = Array.from({length: 13}, (_, i) => 2018 + i)
 
-  const { totalActions, overallScore, activeGoalsCount, recentActivities } = useMemo(() => {
+  const { totalActions, overallScore, totalPositive, totalNegative, activeGoalsCount, recentActivities } = useMemo(() => {
     // 1. Filter goals
     const activeGoals = specificGoals.filter(g => g.isActive && g.year === currentYear)
     const activeGoalsCount = activeGoals.length
@@ -20,6 +20,8 @@ export default function OverviewClient() {
     const totalActions = yearActivities.length
 
     let overallScore = 0
+    let totalPositive = 0
+    let totalNegative = 0
     const processedActivities = []
 
     for (const activity of yearActivities) {
@@ -27,6 +29,8 @@ export default function OverviewClient() {
       for (const impact of activity.impacts) {
         if (activeGoalIds.has(impact.goalId)) {
           overallScore += impact.score
+          if (impact.score > 0) totalPositive += impact.score
+          if (impact.score < 0) totalNegative += Math.abs(impact.score)
         }
       }
       
@@ -46,7 +50,7 @@ export default function OverviewClient() {
     // Take top 10 for recent
     const recentActivities = processedActivities.slice(0, 10)
 
-    return { totalActions, overallScore, activeGoalsCount, recentActivities }
+    return { totalActions, overallScore, totalPositive, totalNegative, activeGoalsCount, recentActivities }
   }, [activities, specificGoals, currentYear])
 
   const OVERVIEW_METRICS = [
@@ -96,6 +100,12 @@ export default function OverviewClient() {
                   : 'text-slate-900'
               }`}>{metric.value}</span>
             </div>
+            {metric.title === 'Overall CPD Score' && (
+              <div className="mt-2 mb-1 flex items-center gap-3 text-xs font-semibold">
+                <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">+{totalPositive.toFixed(1)} Pos</span>
+                <span className="text-red-600 bg-red-50 px-2 py-0.5 rounded-md">-{totalNegative.toFixed(1)} Neg</span>
+              </div>
+            )}
             <p className="mt-1 text-xs text-slate-500">{metric.trend}</p>
           </div>
         ))}
