@@ -4,14 +4,15 @@ import { useMemo, useState } from 'react'
 import { TrendingUp, Activity, Target } from 'lucide-react'
 import { isSameDay, isSameWeek, isSameMonth } from 'date-fns'
 import { useDashboard } from '@/context/DashboardContext'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 export default function OverviewClient() {
-  const { currentYear, setCurrentYear, activities, specificGoals } = useDashboard()
+  const { currentYear, setCurrentYear, activities, specificGoals, bankLogs } = useDashboard()
 
   const availableYears = Array.from({length: 13}, (_, i) => 2018 + i)
   const [timeFilter, setTimeFilter] = useState<'day' | 'week' | 'month' | 'year'>('year')
 
-  const { totalActions, overallScore, totalPositive, totalNegative, activeGoalsCount, recentActivities } = useMemo(() => {
+  const { totalActions, overallScore, totalPositive, totalNegative, activeGoalsCount, recentActivities, cpdChartData } = useMemo(() => {
     // 1. Filter goals
     const activeGoals = specificGoals.filter(g => g.isActive && g.year === currentYear)
     const activeGoalsCount = activeGoals.length
@@ -35,34 +36,47 @@ export default function OverviewClient() {
     let totalPositive = 0
     let totalNegative = 0
     const processedActivities = []
+    const cpdChartData = []
 
-    for (const activity of filteredActivities) {
+    // Sort ascending first to build the cumulative chart
+    const ascendingActivities = [...filteredActivities].sort((a, b) => new Date(a.dateIso).getTime() - new Date(b.dateIso).getTime())
+
+    for (const activity of ascendingActivities) {
+      let activityScore = 0
+      const relevantImpacts = []
+      
       // Sum the scores of impacts that hit ACTIVE goals for this year
       for (const impact of activity.impacts) {
         if (activeGoalIds.has(impact.goalId) || impact.goalId === 'global_penalty') {
           overallScore += impact.score
+          activityScore += impact.score
           if (impact.score > 0) totalPositive += impact.score
           if (impact.score < 0) totalNegative += Math.abs(impact.score)
+          relevantImpacts.push(impact)
         }
       }
       
-      // For the recent activities table, we just list the impacts nicely
-      const relevantImpacts = activity.impacts.filter(i => activeGoalIds.has(i.goalId) || i.goalId === 'global_penalty')
+      // Only add to chart if it actually impacted the score (or if you want every day, leave it outside)
       if (relevantImpacts.length > 0 || activity.isPenalty) {
-         processedActivities.push({
-           ...activity,
-           displayImpacts: relevantImpacts.length > 0 ? relevantImpacts : activity.impacts
-         })
+        cpdChartData.push({
+          date: new Date(activity.dateIso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+          score: overallScore
+        })
+        
+        processedActivities.push({
+          ...activity,
+          displayImpacts: relevantImpacts.length > 0 ? relevantImpacts : activity.impacts
+        })
       }
     }
 
-    // Sort descending by dateIso
+    // Sort descending by dateIso for the recent activities table
     processedActivities.sort((a, b) => new Date(b.dateIso).getTime() - new Date(a.dateIso).getTime())
     
     // Take top 10 for recent
     const recentActivities = processedActivities.slice(0, 10)
 
-    return { totalActions, overallScore, totalPositive, totalNegative, activeGoalsCount, recentActivities }
+    return { totalActions, overallScore, totalPositive, totalNegative, activeGoalsCount, recentActivities, cpdChartData }
   }, [activities, specificGoals, currentYear, timeFilter])
 
   const OVERVIEW_METRICS = [
@@ -136,6 +150,54 @@ export default function OverviewClient() {
             <p className="mt-1 text-xs text-slate-500">{metric.trend}</p>
           </div>
         ))}
+      </div>
+
+      {/* CPD Effect Trend Overview */}
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h3 className="text-lg font-medium text-slate-900 mb-6">Total CPD Effect Growth ({currentYear})</h3>
+        <div className="h-[250px] w-full relative">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={cpdChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorCpdScore" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+              <XAxis 
+                dataKey="date" 
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: '#64748b', fontSize: 12 }}
+                dy={10}
+              />
+              <YAxis 
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: '#64748b', fontSize: 12 }}
+              />
+              <Tooltip 
+                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                formatter={(value: number) => [`${value > 0 ? '+' : ''}${value.toLocaleString()} Score`, 'CPD Effect']}
+                labelStyle={{ color: '#64748b', fontWeight: 600, marginBottom: '4px' }}
+              />
+              <Area 
+                type="monotone" 
+                dataKey="score" 
+                stroke="#10b981" 
+                strokeWidth={3}
+                fillOpacity={1} 
+                fill="url(#colorCpdScore)" 
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+          {cpdChartData.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/50 backdrop-blur-sm rounded-xl">
+              <p className="text-sm text-slate-500 font-medium">No activity data yet</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Recent Activity Table */}

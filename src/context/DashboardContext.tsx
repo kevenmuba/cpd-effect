@@ -39,6 +39,17 @@ export interface BankLog {
   week: number
 }
 
+export interface TikTokLog {
+  id: string
+  followers: number
+  likes: number
+  connections: number
+  dateIso: string
+  year: number
+  month: number
+  week: number
+}
+
 interface DashboardContextType {
   currentYear: number
   setCurrentYear: (year: number) => void
@@ -51,6 +62,8 @@ interface DashboardContextType {
   addActivity: (activity: Activity) => Promise<void>
   bankLogs: BankLog[]
   addBankLog: (amount: number) => Promise<void>
+  tiktokLogs: TikTokLog[]
+  addTikTokLog: (followers: number, likes: number, connections: number) => Promise<void>
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined)
@@ -68,6 +81,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [specificGoals, setSpecificGoalsState] = useState<SpecificGoal[]>(INITIAL_GOALS)
   const [activities, setActivitiesState] = useState<Activity[]>([])
   const [bankLogs, setBankLogsState] = useState<BankLog[]>([])
+  const [tiktokLogs, setTikTokLogsState] = useState<TikTokLog[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
 
   async function enforcePenalties(currentActivities: Activity[], currentGoals: SpecificGoal[], activeYear: number): Promise<Activity[]> {
@@ -243,6 +257,28 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           }
         }
         setBankLogsState(loadedBankLogs)
+
+        let loadedTikTokLogs: TikTokLog[] = []
+        if (user) {
+          const { data: tikData, error: tikError } = await supabase
+            .from('tiktok_logs')
+            .select('*')
+            .order('date_iso', { ascending: false })
+            
+          if (tikData && !tikError) {
+            loadedTikTokLogs = tikData.map((t: any) => ({
+              id: t.id,
+              followers: Number(t.followers),
+              likes: Number(t.likes),
+              connections: Number(t.connections),
+              dateIso: t.date_iso,
+              year: t.year,
+              month: t.month,
+              week: t.week
+            }))
+          }
+        }
+        setTikTokLogsState(loadedTikTokLogs)
         
         // Run Penalty Engine
         const processedActivities = await enforcePenalties(loadedActivities, loadedGoals, activeYear)
@@ -415,6 +451,56 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     setBankLogsState(prev => [newLog, ...prev].sort((a, b) => new Date(b.dateIso).getTime() - new Date(a.dateIso).getTime()))
   }
 
+  const addTikTokLog = async (followers: number, likes: number, connections: number) => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const now = new Date()
+    let ethYear = currentYear
+    let ethMonth = 1
+    let ethWeek = 1
+    try {
+      const { EthDateTime } = require('ethiopian-calendar-date-converter');
+      const utcNow = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+      const ethDate = EthDateTime.fromEuropeanDate(utcNow);
+      ethYear = ethDate.year;
+      ethMonth = ethDate.month;
+      ethWeek = Math.ceil(ethDate.date / 7);
+    } catch (e) {
+      console.error(e)
+    }
+
+    const { data, error } = await supabase.from('tiktok_logs').insert({
+      user_id: user.id,
+      followers,
+      likes,
+      connections,
+      date_iso: now.toISOString(),
+      year: ethYear,
+      month: ethMonth,
+      week: ethWeek
+    }).select().single()
+
+    if (error) {
+      console.error("Error inserting tiktok log:", error.message || error)
+      return
+    }
+
+    const newLog: TikTokLog = {
+      id: data.id,
+      followers: Number(data.followers),
+      likes: Number(data.likes),
+      connections: Number(data.connections),
+      dateIso: data.date_iso,
+      year: data.year,
+      month: data.month,
+      week: data.week
+    }
+
+    setTikTokLogsState(prev => [newLog, ...prev].sort((a, b) => new Date(b.dateIso).getTime() - new Date(a.dateIso).getTime()))
+  }
+
   const handleSetYear = (year: number) => {
     setCurrentYear(year)
     localStorage.setItem('cpd_current_year', year.toString())
@@ -438,6 +524,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         addActivity,
         bankLogs,
         addBankLog,
+        tiktokLogs,
+        addTikTokLog,
       }}
     >
       {children}

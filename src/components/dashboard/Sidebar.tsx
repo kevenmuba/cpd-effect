@@ -3,10 +3,9 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { LayoutDashboard, Target, CalendarDays, LineChart, FileText, ChevronDown, ChevronRight, LogOut } from 'lucide-react'
+import { LayoutDashboard, Target, CalendarDays, LineChart, FileText, ChevronDown, ChevronRight, LogOut, Landmark, Users } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import { useDashboard } from '@/context/DashboardContext'
-import BankWidgetClient from './BankWidgetClient'
 
 export default function Sidebar() {
   const { specificGoals, currentYear } = useDashboard()
@@ -103,7 +102,26 @@ export default function Sidebar() {
             )}
           </div>
 
-          <BankWidgetClient />
+          <div className="mb-4 pt-4">
+            <p className="px-2 text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+              Tracking
+            </p>
+            <Link
+              href="/dashboard/bank"
+              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+            >
+              <Landmark className="h-4 w-4" />
+              Bank Status
+            </Link>
+            <Link
+              href="/dashboard/tiktok"
+              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 mt-1"
+            >
+              <Users className="h-4 w-4" />
+              TikTok Status
+            </Link>
+          </div>
+
         </nav>
 
         <div className="mt-auto border-t border-slate-200 pt-4">
