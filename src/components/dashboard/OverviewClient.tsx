@@ -39,7 +39,7 @@ export default function OverviewClient() {
     for (const activity of filteredActivities) {
       // Sum the scores of impacts that hit ACTIVE goals for this year
       for (const impact of activity.impacts) {
-        if (activeGoalIds.has(impact.goalId)) {
+        if (activeGoalIds.has(impact.goalId) || impact.goalId === 'global_penalty') {
           overallScore += impact.score
           if (impact.score > 0) totalPositive += impact.score
           if (impact.score < 0) totalNegative += Math.abs(impact.score)
@@ -47,7 +47,7 @@ export default function OverviewClient() {
       }
       
       // For the recent activities table, we just list the impacts nicely
-      const relevantImpacts = activity.impacts.filter(i => activeGoalIds.has(i.goalId))
+      const relevantImpacts = activity.impacts.filter(i => activeGoalIds.has(i.goalId) || i.goalId === 'global_penalty')
       if (relevantImpacts.length > 0 || activity.isPenalty) {
          processedActivities.push({
            ...activity,

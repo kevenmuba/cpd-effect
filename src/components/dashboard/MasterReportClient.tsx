@@ -18,7 +18,9 @@ export default function MasterReportClient() {
   useEffect(() => {
     try {
       const { EthDateTime } = require('ethiopian-calendar-date-converter');
-      const ethDate = EthDateTime.fromEuropeanDate(new Date());
+      const localNow = new Date();
+      const utcNow = new Date(Date.UTC(localNow.getFullYear(), localNow.getMonth(), localNow.getDate()));
+      const ethDate = EthDateTime.fromEuropeanDate(utcNow);
       setRealEthDate({
         year: ethDate.year,
         month: ethDate.month,
@@ -53,7 +55,8 @@ export default function MasterReportClient() {
       
       try {
         const { EthDateTime } = require('ethiopian-calendar-date-converter');
-        const actEthDate = EthDateTime.fromEuropeanDate(d);
+        const utcDate = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        const actEthDate = EthDateTime.fromEuropeanDate(utcDate);
         const actWeek = Math.ceil(actEthDate.date / 7);
 
         if (timeFilter === 'year') {

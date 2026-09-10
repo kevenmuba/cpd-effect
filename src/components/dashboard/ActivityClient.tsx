@@ -21,7 +21,9 @@ export default function ActivityLoggerClient() {
   useEffect(() => {
     try {
       const { EthDateTime } = require('ethiopian-calendar-date-converter');
-      const ethDate = EthDateTime.fromEuropeanDate(new Date());
+      const localNow = new Date();
+      const utcNow = new Date(Date.UTC(localNow.getFullYear(), localNow.getMonth(), localNow.getDate()));
+      const ethDate = EthDateTime.fromEuropeanDate(utcNow);
       setRealCurrentEthYear(ethDate.year);
       
       const ethMonths = ['', 'Meskerem', 'Tikimt', 'Hidar', 'Tahesas', 'Tir', 'Yekatit', 'Megabit', 'Miazia', 'Ginbot', 'Sene', 'Hamle', 'Nehase', 'Pagumē'];
@@ -97,7 +99,8 @@ export default function ActivityLoggerClient() {
       
       try {
         const { EthDateTime } = require('ethiopian-calendar-date-converter');
-        const ethDate = EthDateTime.fromEuropeanDate(d);
+        const utcDate = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        const ethDate = EthDateTime.fromEuropeanDate(utcDate);
         ethYear = ethDate.year;
         ethMonthName = `${ethMonths[ethDate.month]} ${ethYear}`;
         

@@ -136,7 +136,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     loadData()
   }, [])
 
-  const enforcePenalties = async (currentActivities: Activity[], currentGoals: SpecificGoal[], activeYear: number): Promise<Activity[]> => {
+  async function enforcePenalties(currentActivities: Activity[], currentGoals: SpecificGoal[], activeYear: number): Promise<Activity[]> {
     if (currentActivities.length === 0) return currentActivities
 
     // Find the earliest activity date
@@ -161,12 +161,12 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       const hasPenaltyAlready = currentActivities.some(a => isSameDay(new Date(a.dateIso), day) && a.isPenalty)
       
       if (!hasActivity && !hasPenaltyAlready) {
-        // Generate penalty
-        const impacts = activeGoals.map(g => ({
-          goalId: g.id,
-          goalName: g.name,
+        // Generate penalty as a single global impact
+        const impacts = [{
+          goalId: 'global_penalty',
+          goalName: 'General Missing Day',
           score: -1.0
-        }))
+        }]
 
         const penaltyActivity: Activity = {
           id: day.getTime().toString(), // We'll let DB generate UUID if we want, but local generation is easier here for state
