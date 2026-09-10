@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { LayoutDashboard, Target, CalendarDays, LineChart, FileText, ChevronDown, ChevronRight, LogOut } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import { useDashboard } from '@/context/DashboardContext'
+import BankWidgetClient from './BankWidgetClient'
 
 export default function Sidebar() {
   const { specificGoals, currentYear } = useDashboard()
@@ -101,6 +102,8 @@ export default function Sidebar() {
               </div>
             )}
           </div>
+
+          <BankWidgetClient />
         </nav>
 
         <div className="mt-auto border-t border-slate-200 pt-4">

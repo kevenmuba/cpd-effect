@@ -30,6 +30,15 @@ export interface Activity {
   isPenalty?: boolean
 }
 
+export interface BankLog {
+  id: string
+  amount: number
+  dateIso: string
+  year: number
+  month: number
+  week: number
+}
+
 interface DashboardContextType {
   currentYear: number
   setCurrentYear: (year: number) => void
@@ -40,6 +49,8 @@ interface DashboardContextType {
   editGoal: (id: string, updates: Partial<SpecificGoal>) => Promise<void>
   activities: Activity[]
   addActivity: (activity: Activity) => Promise<void>
+  bankLogs: BankLog[]
+  addBankLog: (amount: number) => Promise<void>
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined)
@@ -56,85 +67,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [generalPlan, setGeneralPlanState] = useState(INITIAL_GENERAL_PLAN)
   const [specificGoals, setSpecificGoalsState] = useState<SpecificGoal[]>(INITIAL_GOALS)
   const [activities, setActivitiesState] = useState<Activity[]>([])
+  const [bankLogs, setBankLogsState] = useState<BankLog[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
-
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const savedYear = localStorage.getItem('cpd_current_year')
-        const activeYear = savedYear ? Number(savedYear) : 2018
-        setCurrentYear(activeYear)
-
-        const supabase = createClient()
-        const { data: { user } } = await supabase.auth.getUser()
-
-        let loadedGoals: SpecificGoal[] = INITIAL_GOALS
-
-        if (user) {
-          // Load General Plan
-          const { data: planData, error: planError } = await supabase
-            .from('general_plans')
-            .select('plan')
-            .eq('user_id', user.id)
-            .maybeSingle()
-            
-          if (planData && !planError) {
-            setGeneralPlanState(planData.plan)
-          }
-          const { data, error } = await supabase
-            .from('goals')
-            .select('*')
-            .order('created_at', { ascending: true })
-            
-          if (!error && data) {
-            loadedGoals = data.map((g: any) => ({
-              id: g.id,
-              name: g.name,
-              sidebarName: g.sidebar_name,
-              target: g.target,
-              isActive: g.is_active,
-              year: g.year
-            }))
-          } else if (error) {
-            console.error("Supabase select error:", error.message || error)
-          }
-        }
-        setSpecificGoalsState(loadedGoals)
-
-        let loadedActivities: Activity[] = []
-        if (user) {
-          const { data: actData, error: actError } = await supabase
-            .from('activities')
-            .select('*')
-            .order('created_at', { ascending: false })
-            
-          if (actData && !actError) {
-            loadedActivities = actData.map((a: any) => ({
-              id: a.id,
-              action: a.action,
-              impacts: a.impacts,
-              date: a.date,
-              dateIso: a.date_iso,
-              ethWeek: a.eth_week,
-              year: a.year,
-              isPenalty: a.is_penalty
-            }))
-          }
-        }
-        
-        // Run Penalty Engine
-        const processedActivities = await enforcePenalties(loadedActivities, loadedGoals, activeYear)
-        setActivitiesState(processedActivities)
-
-      } catch (e) {
-        console.error("Failed to load from local storage or supabase", e)
-      } finally {
-        setIsLoaded(true)
-      }
-    }
-    
-    loadData()
-  }, [])
 
   async function enforcePenalties(currentActivities: Activity[], currentGoals: SpecificGoal[], activeYear: number): Promise<Activity[]> {
     if (currentActivities.length === 0) return currentActivities
@@ -225,6 +159,106 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
     return currentActivities
   }
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const savedYear = localStorage.getItem('cpd_current_year')
+        const activeYear = savedYear ? Number(savedYear) : 2018
+        setCurrentYear(activeYear)
+
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+
+        let loadedGoals: SpecificGoal[] = INITIAL_GOALS
+
+        if (user) {
+          // Load General Plan
+          const { data: planData, error: planError } = await supabase
+            .from('general_plans')
+            .select('plan')
+            .eq('user_id', user.id)
+            .maybeSingle()
+            
+          if (planData && !planError) {
+            setGeneralPlanState(planData.plan)
+          }
+          const { data, error } = await supabase
+            .from('goals')
+            .select('*')
+            .order('created_at', { ascending: true })
+            
+          if (!error && data) {
+            loadedGoals = data.map((g: any) => ({
+              id: g.id,
+              name: g.name,
+              sidebarName: g.sidebar_name,
+              target: g.target,
+              isActive: g.is_active,
+              year: g.year
+            }))
+          } else if (error) {
+            console.error("Supabase select error:", error.message || error)
+          }
+        }
+        setSpecificGoalsState(loadedGoals)
+
+        let loadedActivities: Activity[] = []
+        if (user) {
+          const { data: actData, error: actError } = await supabase
+            .from('activities')
+            .select('*')
+            .order('created_at', { ascending: false })
+            
+          if (actData && !actError) {
+            loadedActivities = actData.map((a: any) => ({
+              id: a.id,
+              action: a.action,
+              impacts: a.impacts,
+              date: a.date,
+              dateIso: a.date_iso,
+              ethWeek: a.eth_week,
+              year: a.year,
+              isPenalty: a.is_penalty
+            }))
+          }
+        }
+
+        let loadedBankLogs: BankLog[] = []
+        if (user) {
+          const { data: bankData, error: bankError } = await supabase
+            .from('bank_logs')
+            .select('*')
+            .order('date_iso', { ascending: false })
+            
+          if (bankData && !bankError) {
+            loadedBankLogs = bankData.map((b: any) => ({
+              id: b.id,
+              amount: Number(b.amount),
+              dateIso: b.date_iso,
+              year: b.year,
+              month: b.month,
+              week: b.week
+            }))
+          }
+        }
+        setBankLogsState(loadedBankLogs)
+        
+        // Run Penalty Engine
+        const processedActivities = await enforcePenalties(loadedActivities, loadedGoals, activeYear)
+        setActivitiesState(processedActivities)
+
+      } catch (e) {
+        console.error("Failed to load from local storage or supabase", e)
+      } finally {
+        setIsLoaded(true)
+      }
+    }
+    
+    loadData()
+  }, [])
+
+
 
   const setGeneralPlan = async (plan: string) => {
     const supabase = createClient()
@@ -335,6 +369,52 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     setActivitiesState(prev => [newActivity, ...prev])
   }
 
+  const addBankLog = async (amount: number) => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const now = new Date()
+    let ethYear = currentYear
+    let ethMonth = 1
+    let ethWeek = 1
+    try {
+      const { EthDateTime } = require('ethiopian-calendar-date-converter');
+      const utcNow = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+      const ethDate = EthDateTime.fromEuropeanDate(utcNow);
+      ethYear = ethDate.year;
+      ethMonth = ethDate.month;
+      ethWeek = Math.ceil(ethDate.date / 7);
+    } catch (e) {
+      console.error(e)
+    }
+
+    const { data, error } = await supabase.from('bank_logs').insert({
+      user_id: user.id,
+      amount,
+      date_iso: now.toISOString(),
+      year: ethYear,
+      month: ethMonth,
+      week: ethWeek
+    }).select().single()
+
+    if (error) {
+      console.error("Error inserting bank log:", error.message || error)
+      return
+    }
+
+    const newLog: BankLog = {
+      id: data.id,
+      amount: Number(data.amount),
+      dateIso: data.date_iso,
+      year: data.year,
+      month: data.month,
+      week: data.week
+    }
+
+    setBankLogsState(prev => [newLog, ...prev].sort((a, b) => new Date(b.dateIso).getTime() - new Date(a.dateIso).getTime()))
+  }
+
   const handleSetYear = (year: number) => {
     setCurrentYear(year)
     localStorage.setItem('cpd_current_year', year.toString())
@@ -356,6 +436,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         editGoal,
         activities,
         addActivity,
+        bankLogs,
+        addBankLog,
       }}
     >
       {children}
