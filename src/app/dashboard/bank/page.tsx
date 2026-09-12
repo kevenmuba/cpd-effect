@@ -274,7 +274,7 @@ export default function BankPage() {
                 />
                 <Tooltip 
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  formatter={(value: number) => [`${value.toLocaleString()} ETB`, 'Balance']}
+                  formatter={(value: any) => [`${Number(value).toLocaleString()} ETB`, 'Balance']}
                   labelStyle={{ color: '#64748b', fontWeight: 600, marginBottom: '4px' }}
                 />
                 <Area 

@@ -179,7 +179,7 @@ export default function OverviewClient() {
               />
               <Tooltip 
                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                formatter={(value: number) => [`${value > 0 ? '+' : ''}${value.toLocaleString()} Score`, 'CPD Effect']}
+                formatter={(value: any) => [`${Number(value) > 0 ? '+' : ''}${Number(value).toLocaleString()} Score`, 'CPD Effect']}
                 labelStyle={{ color: '#64748b', fontWeight: 600, marginBottom: '4px' }}
               />
               <Area 
