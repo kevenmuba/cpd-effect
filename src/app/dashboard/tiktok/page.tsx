@@ -14,7 +14,7 @@ export default function TikTokPage() {
   const [actualEthYear, setActualEthYear] = useState(currentYear)
   const [expandedMonths, setExpandedMonths] = useState<{ [key: string]: boolean }>({})
   
-  const availableYears = Array.from({length: 13}, (_, i) => 2018 + i)
+  const availableYears = Array.from({length: 14}, (_, i) => 2017 + i)
 
   useEffect(() => {
     try {

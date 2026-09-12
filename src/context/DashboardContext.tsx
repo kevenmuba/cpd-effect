@@ -68,15 +68,25 @@ interface DashboardContextType {
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined)
 
+let initialEthYear = 2019;
+try {
+  const now = new Date();
+  const utcNow = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  const { EthDateTime } = require('ethiopian-calendar-date-converter');
+  initialEthYear = EthDateTime.fromEuropeanDate(utcNow).year;
+} catch (e) {
+  console.error(e);
+}
+
 const INITIAL_GENERAL_PLAN = "To become physically healthier, financially independent, and spiritually grounded by the end of the Ethiopian year."
 const INITIAL_GOALS: SpecificGoal[] = [
-  { id: 'financial', name: 'Financial Freedom', target: '+100 impact score', isActive: true, year: 2018 },
-  { id: 'health', name: 'Health & Fitness', target: '+50 impact score', isActive: true, year: 2018 },
-  { id: 'religious', name: 'Spiritual Growth', target: '+200 impact score', isActive: true, year: 2018 },
+  { id: 'financial', name: 'Financial Freedom', target: '+100 impact score', isActive: true, year: initialEthYear },
+  { id: 'health', name: 'Health & Fitness', target: '+50 impact score', isActive: true, year: initialEthYear },
+  { id: 'religious', name: 'Spiritual Growth', target: '+200 impact score', isActive: true, year: initialEthYear },
 ]
 
 export function DashboardProvider({ children }: { children: ReactNode }) {
-  const [currentYear, setCurrentYear] = useState<number>(2018)
+  const [currentYear, setCurrentYear] = useState<number>(initialEthYear)
   const [generalPlan, setGeneralPlanState] = useState(INITIAL_GENERAL_PLAN)
   const [specificGoals, setSpecificGoalsState] = useState<SpecificGoal[]>(INITIAL_GOALS)
   const [activities, setActivitiesState] = useState<Activity[]>([])
@@ -178,7 +188,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     async function loadData() {
       try {
         const savedYear = localStorage.getItem('cpd_current_year')
-        const activeYear = savedYear ? Number(savedYear) : 2018
+        const activeYear = savedYear ? Number(savedYear) : initialEthYear
         setCurrentYear(activeYear)
 
         const supabase = createClient()

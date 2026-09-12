@@ -12,7 +12,7 @@ export default function BankPage() {
   const [actualEthYear, setActualEthYear] = useState(currentYear)
   const [expandedMonths, setExpandedMonths] = useState<{ [key: string]: boolean }>({})
   
-  const availableYears = Array.from({length: 13}, (_, i) => 2018 + i)
+  const availableYears = Array.from({length: 14}, (_, i) => 2017 + i)
 
   useEffect(() => {
     try {
@@ -247,7 +247,7 @@ export default function BankPage() {
         </div>
 
         {/* Growth Chart */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="relative rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h3 className="text-xl font-bold text-slate-900 mb-6 px-1">Balance Trend ({currentYear})</h3>
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">

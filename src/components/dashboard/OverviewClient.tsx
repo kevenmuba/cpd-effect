@@ -9,7 +9,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 export default function OverviewClient() {
   const { currentYear, setCurrentYear, activities, specificGoals, bankLogs } = useDashboard()
 
-  const availableYears = Array.from({length: 13}, (_, i) => 2018 + i)
+  const availableYears = Array.from({length: 14}, (_, i) => 2017 + i)
   const [timeFilter, setTimeFilter] = useState<'day' | 'week' | 'month' | 'year'>('year')
 
   const { totalActions, overallScore, totalPositive, totalNegative, activeGoalsCount, recentActivities, cpdChartData } = useMemo(() => {

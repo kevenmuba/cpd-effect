@@ -20,8 +20,8 @@ export default function ManageGoalsClient() {
   const [editGoalSidebarName, setEditGoalSidebarName] = useState('')
   const [editGoalTarget, setEditGoalTarget] = useState('')
 
-  // Generate years from 2018 up to 2030 (Ethiopian)
-  const availableYears = Array.from({length: 13}, (_, i) => 2018 + i)
+  // Generate years from 2017 up to 2030 (Ethiopian)
+  const availableYears = Array.from({length: 14}, (_, i) => 2017 + i)
 
   const handleSavePlan = () => {
     setGeneralPlan(tempPlan)

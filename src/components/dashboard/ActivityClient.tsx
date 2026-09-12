@@ -12,11 +12,11 @@ export default function ActivityLoggerClient() {
   // Track selected goals and their specific scores
   const [selectedImpacts, setSelectedImpacts] = useState<Record<string, number>>({})
 
-  const [realCurrentEthYear, setRealCurrentEthYear] = useState(2018)
+  const [realCurrentEthYear, setRealCurrentEthYear] = useState(2017)
   const [todayEthDateStr, setTodayEthDateStr] = useState('')
 
-  // Generate years from 2018 up to 2030 (Ethiopian)
-  const availableYears = Array.from({length: 13}, (_, i) => 2018 + i)
+  // Generate years from 2017 up to 2030 (Ethiopian)
+  const availableYears = Array.from({length: 14}, (_, i) => 2017 + i)
 
   useEffect(() => {
     try {
